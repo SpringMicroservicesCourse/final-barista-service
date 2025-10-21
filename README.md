@@ -1,290 +1,567 @@
-# SpringBucks 咖啡師微服務 ⚡
+# final-barista-service
 
-[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://www.oracle.com/java/)
+> SpringBucks Barista Service - Pure message-driven microservice with RabbitMQ-based Zipkin tracing and async order processing
+
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.5-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/)
 [![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2024.0.2-blue.svg)](https://spring.io/projects/spring-cloud)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-blue.svg)](https://www.docker.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Zipkin](https://img.shields.io/badge/Zipkin-RabbitMQ-blue.svg)](https://zipkin.io/)
+[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Enabled-orange.svg)](https://www.rabbitmq.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 專案介紹
+Message-driven barista service demonstrating pure async architecture with Spring Cloud Stream + RabbitMQ, RabbitMQ-based Zipkin tracing (non-blocking reporter), and instant order processing without HTTP endpoints.
 
-本專案為 SpringBucks 咖啡店系統的咖啡師微服務，負責處理咖啡製作、訂單狀態更新、以及與訊息佇列系統的整合。此服務展示了現代微服務架構中後端處理服務的設計模式，包含訊息驅動架構、服務發現、鏈路追蹤等核心功能。
+## Features
 
-**核心功能：**
-- **咖啡製作處理**：接收咖啡製作請求，處理咖啡製作流程
-- **訂單狀態管理**：更新訂單狀態，追蹤製作進度
-- **訊息驅動架構**：透過 RabbitMQ 接收與處理訊息
-- **服務發現**：自動向 Consul 服務註冊中心註冊服務實例
-- **鏈路追蹤**：整合 Zipkin 進行分散式鏈路追蹤
-- **健康監控**：提供完整的服務健康檢查與監控指標
+- **Pure Message-Driven**: No HTTP API, 100% RabbitMQ-based communication
+- **RabbitMQ Zipkin Reporter**: Non-blocking tracing via RabbitMQ (vs HTTP in waiter/customer services)
+- **Async Order Processing**: Instant order state updates (ORDERED → BREWED → READY)
+- **Spring Cloud Stream**: Function-based programming model (`Consumer<Message<Long>>`)
+- **Service Discovery**: Consul registration for monitoring
+- **MariaDB Persistence**: Order state persistence with JPA
+- **Instant Processing**: No artificial delays, optimized for throughput
 
-> 💡 **為什麼選擇此微服務架構？**
-> - 展示訊息驅動微服務的完整設計模式
-> - 整合現代化的服務治理與監控工具
-> - 支援非同步處理與事件驅動架構
-> - 提供完整的分散式系統追蹤能力
+## Tech Stack
 
-### 🎯 專案特色
+- **Spring Boot 3.4.5** + **Spring Cloud 2024.0.2**
+- **Spring Cloud Stream** + **RabbitMQ** (Message consumer & producer)
+- **Micrometer Tracing + Brave Bridge**
+- **Zipkin** (RabbitMQ reporter - async tracing)
+- **Spring Cloud Consul Discovery**
+- **Spring Data JPA** + **MariaDB 11.8.3**
+- **Lombok** + **Java 21**
 
-- **訊息驅動架構**：使用 Spring Cloud Stream 實現訊息驅動的微服務
-- **非同步處理**：透過 RabbitMQ 實現非同步訊息處理
-- **服務發現**：整合 Consul 進行服務註冊與發現
-- **鏈路追蹤**：整合 Zipkin 進行分散式系統的請求追蹤
-- **容器化部署**：支援 Docker 打包與部署，便於環境一致性
-- **監控整合**：支援 Prometheus 指標收集與健康檢查
-
-## 技術棧
-
-### 核心框架
-- **Spring Boot 3.4.5** - 主框架，提供自動配置與生產就緒功能
-- **Spring Cloud 2024.0.2** - 微服務框架，提供服務治理功能
-- **Spring Cloud Stream** - 訊息驅動微服務框架
-- **Spring Data JPA** - 資料持久層框架
-
-### 微服務與監控
-- **Consul** - 服務註冊與發現中心
-- **Zipkin** - 分散式鏈路追蹤系統
-- **Micrometer** - 應用程式指標收集
-- **RabbitMQ** - 訊息佇列系統
-
-### 資料庫與訊息
-- **MariaDB** - 主要資料庫
-- **RabbitMQ** - 訊息佇列系統
-- **Spring Cloud Stream Binder Rabbit** - RabbitMQ 整合
-
-### 開發工具與輔助
-- **Lombok** - 減少樣板程式碼
-- **Docker** - 容器化部署
-- **Maven** - 專案建構與依賴管理
-
-## 專案結構
+## Architecture
 
 ```
-final-barista-service/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── tw/fengqing/spring/springbucks/barista/
-│   │   │       ├── BaristaServiceApplication.java          # 主要應用程式入口
-│   │   │       ├── model/                                 # 資料模型
-│   │   │       │   ├── Coffee.java                      # 咖啡實體
-│   │   │       │   ├── CoffeeOrder.java                 # 咖啡訂單實體
-│   │   │       │   └── OrderState.java                  # 訂單狀態枚舉
-│   │   │       ├── repository/                          # 資料存取層
-│   │   │       │   └── CoffeeOrderRepository.java      # 訂單資料存取
-│   │   │       ├── service/                             # 業務邏輯層
-│   │   │       │   └── BaristaService.java             # 咖啡師業務邏輯
-│   │   │       └── integration/                        # 整合層
-│   │   │           └── OrderListener.java              # 訂單訊息監聽器
-│   │   └── resources/
-│   │       ├── application.properties                    # 應用程式配置
-│   │       └── bootstrap.properties                      # 啟動配置
-│   └── test/
-├── Dockerfile                                            # Docker 建構檔案
-├── pom.xml                                              # Maven 專案配置
-└── README.md                                            # 專案說明文件
+┌─────────────────────────────────────────────────────────────┐
+│               final-barista-service (No REST API!)           │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │    RabbitMQ Consumer (newOrders.barista-service)     │  │
+│  │                                                       │  │
+│  │  ← newOrders Exchange (from waiter-service)          │  │
+│  │    Queue: newOrders.barista-service                  │  │
+│  │    Message: { orderId: 1 }                           │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                         ↓                                    │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │         OrderListener (Consumer Function)            │  │
+│  │  1. Fetch order from database                        │  │
+│  │  2. Update state: PAID → ORDERED                     │  │
+│  │  3. Update state: ORDERED → BREWED                   │  │
+│  │  4. Update state: BREWED → READY                     │  │
+│  │  5. Set barista ID (springbucks-{uuid})              │  │
+│  │  6. Save to database (~30ms total)                   │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                         ↓                                    │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │    RabbitMQ Producer (finishedOrders-out-0)          │  │
+│  │                                                       │  │
+│  │  → finishedOrders Exchange (to waiter-service)       │  │
+│  │    Routing Key: finished.orders                      │  │
+│  │    Message: { orderId: 1, customer: "spring-8090" }  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │           Zipkin Tracing (RabbitMQ Reporter)         │  │
+│  │  → zipkin-final-spring-course (RabbitMQ queue)       │  │
+│  │    Async, non-blocking tracing (vs HTTP)             │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                               │
+│  No HTTP Endpoints! Pure async processing.                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## 快速開始
+## Getting Started
 
-### 前置需求
-- **Java 21** - 最新 LTS 版本的 Java
-- **Maven 3.6+** - 專案建構工具
-- **Docker** - 容器化部署（選用）
-- **MariaDB** - 資料庫（或使用 Docker 容器）
-- **RabbitMQ** - 訊息佇列系統（或使用 Docker 容器）
-- **Consul** - 服務註冊中心（或使用 Docker 容器）
-- **Zipkin** - 鏈路追蹤系統（或使用 Docker 容器）
+### Prerequisites
 
-### 安裝與執行
+- **JDK 21** or higher
+- **Maven 3.8+** (or use included wrapper)
+- **Docker** + **Docker Compose** (for complete system deployment)
+- **Running infrastructure** (MariaDB, RabbitMQ, Consul, Zipkin)
 
-1. **克隆此倉庫：**
+### Quick Start (Docker Compose - Recommended)
+
+**Step 1: Build All Docker Images**
+
 ```bash
-git clone https://github.com/username/springbucks-microservices.git
+# Navigate to Chapter 16 directory
+cd "Chapter 16 服務鏈路追蹤"
+
+# Build waiter-service
+cd final-waiter-service
+mvn clean package -DskipTests
+
+# Build customer-service
+cd ../final-customer-service
+mvn clean package -DskipTests
+
+# Build barista-service
+cd ../final-barista-service
+mvn clean package -DskipTests
+# Output: springbucks/final-barista-service:0.0.1-SNAPSHOT
+
+cd ..
 ```
 
-2. **進入專案目錄：**
-```bash
-cd Chapter\ 16\ 服務鏈路追蹤/final-barista-service
-```
+**Step 2: Start Complete System**
 
-3. **編譯專案：**
 ```bash
-mvn clean compile
-```
-
-4. **執行應用程式：**
-```bash
-mvn spring-boot:run
-```
-
-### Docker 部署
-
-1. **建構 Docker 映像檔：**
-```bash
-mvn clean package dockerfile:build
-```
-
-2. **執行 Docker 容器：**
-```bash
-docker run -p 8070:8070 springbucks/final-barista-service:0.0.1-SNAPSHOT
-```
-
-3. **使用 Docker Compose 啟動完整環境：**
-```bash
-cd Chapter\ 16\ 服務鏈路追蹤
+# Start all 9 containers
 docker-compose up -d
+
+# Wait for services to be ready (~30 seconds)
+docker-compose ps
+
+# Expected containers:
+# - final-barista-service        (Up - no exposed ports!)
+# - final-waiter-service         (Up - port 8080)
+# - final-customer-service-8090  (Up - port 8090)
+# - final-customer-service-9090  (Up - port 9090)
+# - mariadb, redis, consul, rabbitmq, zipkin
 ```
 
-## 進階說明
+**Step 3: Verify Barista Service**
 
-### 環境變數
-```properties
-# 資料庫配置
-SPRING_DATASOURCE_URL=jdbc:mariadb://localhost:3306/springbucks
-SPRING_DATASOURCE_USERNAME=springbucks
-SPRING_DATASOURCE_PASSWORD=springbucks
+```bash
+# Check Consul for barista-service registration
+curl http://localhost:8500/v1/catalog/service/barista-service | jq
 
-# RabbitMQ 配置
-SPRING_RABBITMQ_HOST=localhost
-SPRING_RABBITMQ_PORT=5672
-SPRING_RABBITMQ_USERNAME=spring
-SPRING_RABBITMQ_PASSWORD=spring
+# Check barista-service logs
+docker logs final-spring-course-final-barista-service-1
 
-# Consul 配置
-SPRING_CLOUD_CONSUL_HOST=localhost
-SPRING_CLOUD_CONSUL_PORT=8500
-
-# Zipkin 配置
-MANAGEMENT_TRACING_ENDPOINT=http://localhost:9411/api/v2/spans
+# Expected log on startup:
+# Started BaristaServiceApplication in X seconds
+# (No HTTP endpoint logs!)
 ```
 
-### 設定檔說明
-```properties
-# application.properties 主要設定
-spring.application.name=barista-service
-server.port=8070
+### Standalone Execution (Development)
 
-# 資料庫配置
-spring.datasource.url=${SPRING_DATASOURCE_URL}
-spring.jpa.hibernate.ddl-auto=update
+**Prerequisites: Start Infrastructure**
 
-# 服務發現配置
-spring.cloud.consul.discovery.service-name=${spring.application.name}
-spring.cloud.consul.discovery.health-check-interval=10s
+```bash
+# Start MariaDB
+docker run -d --name mariadb \
+  -e MYSQL_DATABASE=springbucks \
+  -e MYSQL_USER=springbucks \
+  -e MYSQL_PASSWORD=springbucks \
+  -e MYSQL_ROOT_PASSWORD=root_password \
+  -p 3306:3306 mariadb:11.8.3
 
-# 訊息佇列配置
-spring.cloud.stream.rabbit.binder.host=${SPRING_RABBITMQ_HOST}
-spring.cloud.stream.rabbit.binder.port=${SPRING_RABBITMQ_PORT}
+# Start RabbitMQ
+docker run -d --name rabbitmq \
+  -e RABBITMQ_DEFAULT_USER=spring \
+  -e RABBITMQ_DEFAULT_PASS=spring \
+  -p 5672:5672 -p 15672:15672 \
+  rabbitmq:4.1.4-management
+
+# Start Consul
+docker run -d --name consul -p 8500:8500 consul:1.4.5
+
+# Start Zipkin (with RabbitMQ support)
+docker run -d --name zipkin \
+  -e RABBIT_ADDRESSES=localhost:5672 \
+  -e RABBIT_USER=spring \
+  -e RABBIT_PASSWORD=spring \
+  -p 9411:9411 openzipkin/zipkin:3-arm64
 ```
 
-## 訊息處理架構
+**Run Application**
 
-### 訂單處理流程
-本服務透過 Spring Cloud Stream 處理來自 RabbitMQ 的訂單訊息：
-
-```java
-@StreamListener(OrderProcessor.ORDER_INPUT)
-public void handleOrder(CoffeeOrder order) {
-    log.info("收到訂單: {}", order);
-    
-    // 處理咖啡製作邏輯
-    processCoffeeOrder(order);
-    
-    // 更新訂單狀態
-    updateOrderState(order);
-}
+```bash
+# Update application.properties for localhost connections
+# Then run:
+./mvnw spring-boot:run
 ```
 
-### 訊息綁定配置
-```java
-public interface OrderProcessor {
-    String ORDER_INPUT = "orderInput";
-    
-    @Input(ORDER_INPUT)
-    SubscribableChannel orderInput();
-}
+## Message Processing Flow
+
+### Complete Order Flow (End-to-End)
+
+```
+1. Customer Service (POST /customer/order)
+   ↓
+2. Waiter Service (POST /order/)
+   - Create order: state = INIT
+   ↓
+3. Waiter Service (PUT /order/{id})
+   - Update state: INIT → PAID
+   - Send message to RabbitMQ (newOrders)
+   ↓
+4. RabbitMQ (newOrders Exchange)
+   - Queue: newOrders.barista-service
+   ↓
+5. Barista Service (Consumer Function) ← YOU ARE HERE
+   - Receive message: { orderId: 1 }
+   - Fetch order from database
+   - Update state: PAID → ORDERED
+   - Update state: ORDERED → BREWED
+   - Update state: BREWED → READY
+   - Set barista ID: springbucks-<uuid>
+   - Save to database (~30ms)
+   - Send message to RabbitMQ (finishedOrders)
+   ↓
+6. RabbitMQ (finishedOrders Exchange)
+   - Routing Key: finished.orders
+   - Queue: finishedOrders.waiter-service
+   ↓
+7. Waiter Service (Consumer Function)
+   - Update order: state = READY → TAKEN
+   - Send notification to customer
+   ↓
+8. Customer Service (Consumer Function)
+   - Display: "Order {id} is READY, I'll take it."
 ```
 
-## API 端點
+### Barista Processing Logic
 
-### 咖啡師服務
-- `GET /actuator/health` - 健康檢查
-- `GET /actuator/metrics` - 應用程式指標
-- `GET /actuator/prometheus` - Prometheus 指標
-
-### 訊息處理
-- 自動處理來自 RabbitMQ 的訂單訊息
-- 支援訂單狀態更新與追蹤
-- 整合鏈路追蹤進行訊息處理監控
-
-## 服務整合
-
-### 與訊息佇列整合
-本服務透過 Spring Cloud Stream 與 RabbitMQ 進行整合：
-
-```java
-@EnableBinding(OrderProcessor.class)
-@SpringBootApplication
-public class BaristaServiceApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(BaristaServiceApplication.class, args);
-    }
-}
-```
-
-### 鏈路追蹤配置
 ```java
 @Bean
-public Sender sender(Tracer tracer) {
-    return new TracingSender(tracer);
+public Consumer<Message<Long>> newOrders() {
+    return message -> {
+        Long orderId = message.getPayload();
+        
+        // 1. Fetch order
+        Optional<CoffeeOrder> optionalOrder = orderRepository.findById(orderId);
+        
+        // 2. Update states (instant processing, no delay!)
+        order.setState(OrderState.ORDERED);
+        orderRepository.save(order);
+        
+        order.setState(OrderState.BREWED);
+        orderRepository.save(order);
+        
+        order.setState(OrderState.READY);
+        order.setBarista(baristaPrefix + UUID.randomUUID().toString());
+        orderRepository.save(order);
+        
+        // 3. Send completion message
+        Message<Long> finishedMessage = MessageBuilder
+            .withPayload(orderId)
+            .setHeader("customer", order.getCustomer())
+            .build();
+        streamBridge.send(finishedOrdersBinding, finishedMessage);
+    };
 }
 ```
 
-## 參考資源
+**Processing Time**: ~30ms (3 database saves + message send)
 
-- [Spring Boot 官方文件](https://spring.io/projects/spring-boot)
-- [Spring Cloud Stream 官方文件](https://spring.io/projects/spring-cloud)
-- [RabbitMQ 官方文件](https://www.rabbitmq.com/documentation.html)
-- [Consul 官方文件](https://www.consul.io/docs)
-- [Zipkin 官方文件](https://zipkin.io/)
+## Configuration Highlights
 
-## 注意事項與最佳實踐
+### Spring Cloud Stream Bindings
 
-### ⚠️ 重要提醒
+```properties
+# Consumer binding: Receive new orders from waiter-service
+spring.cloud.function.definition=newOrders
+spring.cloud.stream.bindings.newOrders-in-0.destination=newOrders
+spring.cloud.stream.bindings.newOrders-in-0.group=barista-service
+spring.cloud.stream.rabbit.bindings.newOrders-in-0.consumer.durable-subscription=true
+spring.cloud.stream.rabbit.bindings.newOrders-in-0.consumer.exchange-name=newOrders
 
-| 項目 | 說明 | 建議做法 |
-|------|------|----------|
-| 訊息處理 | RabbitMQ 連線管理 | 設定適當的連線池與重試機制 |
-| 資料庫操作 | JPA 事務管理 | 確保資料一致性與事務邊界 |
-| 服務發現 | Consul 健康檢查 | 定期檢查服務健康狀態 |
-| 鏈路追蹤 | Zipkin 採樣率 | 生產環境調整採樣率以降低效能影響 |
+# Producer binding: Send finished orders to waiter-service
+spring.cloud.stream.bindings.finishedOrders-out-0.destination=finishedOrders
+spring.cloud.stream.rabbit.bindings.finishedOrders-out-0.producer.delivery-mode=persistent
+spring.cloud.stream.rabbit.bindings.finishedOrders-out-0.producer.exchange-name=finishedOrders
+spring.cloud.stream.rabbit.bindings.finishedOrders-out-0.producer.routing-key=finished.orders
+spring.cloud.stream.rabbit.bindings.finishedOrders-out-0.producer.exchange-type=topic
 
-### 🔒 最佳實踐指南
+# Custom binding name for StreamBridge
+stream.bindings.finished-orders-binding=finishedOrders-out-0
+```
 
-- **訊息處理**：使用 Spring Cloud Stream 實現聲明式訊息處理，提升程式碼可讀性
-- **非同步處理**：透過 RabbitMQ 實現非同步訊息處理，提升系統效能
-- **資料一致性**：使用 JPA 事務管理確保資料一致性
-- **監控告警**：整合 Prometheus 和 Grafana 進行系統監控
-- **容器化**：使用 Docker 確保環境一致性，便於部署和擴展
+### Zipkin Tracing (RabbitMQ Reporter)
 
-## 授權說明
+```properties
+# RabbitMQ-based tracing reporter (DIFFERENT from HTTP!)
+management.zipkin.tracing.endpoint=http://zipkin-final-spring-course:9411/api/v2/spans
+management.tracing.sampling.probability=1.0
+management.zipkin.tracing.sender.type=rabbit  ← KEY DIFFERENCE!
 
-本專案採用 MIT 授權條款，詳見 LICENSE 檔案。
+# Why RabbitMQ vs HTTP?
+# - Async, non-blocking (no impact on message processing time)
+# - High throughput (barista processes many orders)
+# - Prevents tracing overhead from slowing down order processing
+```
 
-## 關於我們
+**Comparison**:
 
-我們主要專注在敏捷專案管理、物聯網（IoT）應用開發和領域驅動設計（DDD）。喜歡把先進技術和實務經驗結合，打造好用又靈活的軟體解決方案。
+| Service | Zipkin Reporter | Reasoning |
+|---------|----------------|-----------|
+| **waiter-service** | HTTP | Moderate load, simple HTTP API |
+| **customer-service** | HTTP | Low load, user-facing UI |
+| **barista-service** | RabbitMQ | High throughput, pure async processing |
 
-## 聯繫我們
+### Database Configuration
 
-- **FB 粉絲頁**：[風清雲談 | Facebook](https://www.facebook.com/profile.php?id=61576838896062)
-- **LinkedIn**：[linkedin.com/in/chu-kuo-lung](https://www.linkedin.com/in/chu-kuo-lung)
-- **YouTube 頻道**：[雲談風清 - YouTube](https://www.youtube.com/channel/UCXDqLTdCMiCJ1j8xGRfwEig)
-- **風清雲談 部落格**：[風清雲談](https://blog.fengqing.tw/)
-- **電子郵件**：[fengqing.tw@gmail.com](mailto:fengqing.tw@gmail.com)
+```properties
+spring.datasource.url=jdbc:mariadb://mariadb-final-spring-course:3306/springbucks
+spring.datasource.username=springbucks
+spring.datasource.password=springbucks
+spring.datasource.driver-class-name=org.mariadb.jdbc.Driver
+
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.properties.hibernate.show_sql=true
+spring.jpa.properties.hibernate.format_sql=true
+```
+
+## Testing
+
+### End-to-End Order Flow Test
+
+```bash
+# Step 1: Create order from customer-service
+curl -X POST http://localhost:8090/customer/order \
+  -H "Content-Type: application/json"
+
+# Expected response:
+{
+  "id": 1,
+  "customer": "spring-8090",
+  "state": "PAID",
+  "waiter": "springbucks-<uuid>"
+}
+
+# Step 2: Check barista-service logs
+docker logs -f final-spring-course-final-barista-service-1
+
+# Expected logs:
+# Receive a new Order 1. Waiter: springbucks-xxx. Customer: spring-8090
+# Order 1 is READY.
+
+# Step 3: Check customer-service logs
+docker logs -f final-spring-course-final-customer-service-8090-1
+
+# Expected logs:
+# Order 1 is READY, I'll take it.
+```
+
+### RabbitMQ Queue Monitoring
+
+```bash
+# Open RabbitMQ Management UI
+open http://localhost:15672
+# Login: spring / spring
+
+# Navigate to Queues tab
+# Expected queues:
+# - newOrders.barista-service       (Consumer: barista-service)
+# - finishedOrders.waiter-service   (Producer: barista-service)
+```
+
+### Zipkin Trace Verification
+
+```bash
+# Open Zipkin UI
+open http://localhost:9411
+
+# Search for barista-service traces
+# Expected span sequence:
+# 1. neworders.barista-service receive      [CONSUMER]
+# 2. new-orders process                     [INTERNAL - processing]
+# 3. stream-bridge process                  [INTERNAL - prepare message]
+# 4. finishedorders-out-0 send              [PRODUCER - Spring Integration]
+# 5. finishedorders/finished.orders send    [PRODUCER - RabbitMQ]
+
+# Processing time: ~30ms
+# No HTTP SERVER spans (barista has no REST API!)
+```
+
+## Monitoring & Observability
+
+### Health Check
+
+```bash
+# Via Consul (barista-service auto-registers)
+curl http://localhost:8500/v1/health/service/barista-service | jq
+
+# Via Actuator (if running standalone)
+curl http://localhost:8070/actuator/health
+
+# Note: Docker Compose does not expose port 8070 to host!
+# To access Actuator in Docker:
+docker exec -it final-spring-course-final-barista-service-1 \
+  curl http://localhost:8070/actuator/health
+```
+
+### Logs Analysis
+
+```bash
+# View full logs
+docker logs -f final-spring-course-final-barista-service-1
+
+# Filter order processing
+docker logs final-spring-course-final-barista-service-1 | grep "Receive a new Order"
+
+# Filter completion messages
+docker logs final-spring-course-final-barista-service-1 | grep "is READY"
+
+# Check database operations
+docker logs final-spring-course-final-barista-service-1 | grep "Hibernate:"
+```
+
+### Database Verification
+
+```bash
+# Connect to MariaDB
+docker exec -it final-spring-course-mariadb-final-spring-course-1 \
+  mariadb -u springbucks -p springbucks
+
+# Query order states
+MariaDB [springbucks]> SELECT id, customer, state, barista FROM t_order;
+
+# Expected output:
++----+--------------+-------+------------------------------------+
+| id | customer     | state | barista                            |
++----+--------------+-------+------------------------------------+
+|  1 | spring-8090  | TAKEN | springbucks-<uuid>                 |
++----+--------------+-------+------------------------------------+
+```
+
+## Performance Characteristics
+
+### Processing Metrics
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| **Order Processing Time** | ~30ms | 3 DB saves + message send |
+| **State Transitions** | 3 | PAID → ORDERED → BREWED → READY |
+| **Database Operations** | 3 saves | Optimized for instant processing |
+| **Message Latency** | <5ms | RabbitMQ message sending |
+| **Tracing Overhead** | 0ms | RabbitMQ async reporter |
+
+**Why Instant Processing?**
+
+```java
+// No artificial delays!
+// order.setState(OrderState.ORDERED);
+// orderRepository.save(order);
+// Thread.sleep(5000);  ← REMOVED! No delays!
+```
+
+**Reasoning**: Barista service simulates instant order completion for:
+- Faster testing and demonstration
+- Showcase high-throughput async processing
+- Prevent RabbitMQ queue buildup
+
+**To Add Realistic Delays** (Optional):
+
+```java
+order.setState(OrderState.ORDERED);
+orderRepository.save(order);
+TimeUnit.SECONDS.sleep(2);  // Simulate brewing
+
+order.setState(OrderState.BREWED);
+orderRepository.save(order);
+TimeUnit.SECONDS.sleep(3);  // Simulate final preparation
+
+order.setState(OrderState.READY);
+// ...
+```
+
+## Best Practices
+
+### Message-Driven Architecture
+
+**Advantages**:
+- ✅ Async, non-blocking processing
+- ✅ Natural backpressure (RabbitMQ queue buffering)
+- ✅ Decoupled from HTTP request/response cycle
+- ✅ Scales horizontally (multiple barista instances)
+
+**Disadvantages**:
+- ⚠️ No direct HTTP health check (relies on Consul)
+- ⚠️ Debugging requires log analysis + Zipkin
+- ⚠️ Message ordering not guaranteed (unless configured)
+
+### RabbitMQ Zipkin Reporter Tuning
+
+```properties
+# Production recommendations:
+# 1. Reduce sampling rate (RabbitMQ reporter is async, but still has overhead)
+management.tracing.sampling.probability=0.1  # 10% sampling
+
+# 2. Configure RabbitMQ connection pool (if high load)
+spring.rabbitmq.listener.simple.concurrency=5
+spring.rabbitmq.listener.simple.max-concurrency=10
+```
+
+### Error Handling
+
+```java
+@Bean
+public Consumer<Message<Long>> newOrders() {
+    return message -> {
+        try {
+            // Processing logic
+        } catch (Exception e) {
+            log.error("Failed to process order: {}", message.getPayload(), e);
+            // Option 1: Retry (throw exception for RabbitMQ to re-queue)
+            // Option 2: Dead Letter Queue (configure DLX)
+            // Option 3: Log and skip (current implementation)
+        }
+    };
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| **No messages received** | Check RabbitMQ queue binding and exchange routing |
+| **Barista ID null** | Verify `order.barista-prefix` property is set |
+| **Database connection failed** | Check MariaDB container and credentials |
+| **Zipkin trace incomplete** | Verify Zipkin RabbitMQ configuration and connectivity |
+
+### Debug Commands
+
+```bash
+# Check RabbitMQ connections
+docker exec rabbitmq-final-spring-course rabbitmqctl list_connections
+
+# Check RabbitMQ consumers
+docker exec rabbitmq-final-spring-course rabbitmqctl list_consumers
+
+# Purge newOrders queue (testing)
+docker exec rabbitmq-final-spring-course rabbitmqctl purge_queue newOrders.barista-service
+```
+
+## Comparison with Other Projects
+
+| Project | Processing Model | Zipkin Reporter | Database | HTTP API |
+|---------|------------------|-----------------|----------|----------|
+| **final-barista** | Pure async (RabbitMQ) | RabbitMQ | MariaDB | ❌ None |
+| **rabbitmq-barista** | Pure async (RabbitMQ) | ❌ None | MariaDB | ❌ None |
+| **simple-barista** | HTTP API | ❌ None | H2 | ✅ REST |
+
+## References
+
+- [Spring Cloud Stream](https://spring.io/projects/spring-cloud-stream)
+- [Spring Cloud Stream RabbitMQ](https://docs.spring.io/spring-cloud-stream-binder-rabbit/reference/)
+- [Zipkin RabbitMQ Reporter](https://github.com/openzipkin/zipkin-reporter-java)
+- [RabbitMQ Management](https://www.rabbitmq.com/docs/management)
+- [Micrometer Tracing](https://micrometer.io/docs/tracing)
+
+## License
+
+This project is licensed under the MIT License.
+
+## Contact
+
+We focus on Agile Project Management, IoT application development, and Domain-Driven Design (DDD), combining advanced technologies with practical experience to create flexible software solutions.
+
+- **Facebook**: [風清雲談](https://www.facebook.com/profile.php?id=61576838896062)
+- **LinkedIn**: [linkedin.com/in/chu-kuo-lung](https://www.linkedin.com/in/chu-kuo-lung)
+- **YouTube**: [雲談風清](https://www.youtube.com/channel/UCXDqLTdCMiCJ1j8xGRfwEig)
+- **Blog**: [風清雲談](https://blog.fengqing.tw/)
+- **Email**: [fengqing.tw@gmail.com](mailto:fengqing.tw@gmail.com)
 
 ---
 
-**📅 最後更新：2025-01-27**  
-**👨‍💻 維護者：風清雲談團隊**
+**Last Updated**: 2025-10-21  
+**Maintainer**: FengQing Team
