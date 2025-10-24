@@ -1106,6 +1106,14 @@ rabbitmq-barista (Message-driven)
 final-barista (Complete production-ready)
 ```
 
+## Troubleshooting
+
+| Issue | Check Command |
+|-------|--------------|
+| **No messages received** | `curl -u spring:spring http://localhost:15672/api/queues/%2F/newOrders.barista-service \| jq` |
+| **Database connection** | `docker ps \| grep mariadb` |
+| **Zipkin traces missing** | Check RabbitMQ connection in Zipkin UI |
+
 ## References
 
 - [Spring Cloud Stream Documentation](https://docs.spring.io/spring-cloud-stream/docs/current/reference/html/)
